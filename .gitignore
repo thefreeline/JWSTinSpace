@@ -35,3 +35,16 @@ sysinfo.txt
 *.avi
 *.mp4
 *.mp3
+*.meta
+/Assets/CapturePanorama/*
+/Assets/Ciconia Studio/*
+/Assets/Image Sequence Playback/*
+/Assets/RealtimeReflections/*
+/Assets/SolarSystem/*
+/Assets/SteamVR/*
+/Assets/SWS/*
+/Assets/VolumetricLines/*
+/Assets/VRPanorama/*
+/Assets/VRSampleScenes/*
+/Assets/VRStandardAssets/*
+/Assets/VRTK/*
