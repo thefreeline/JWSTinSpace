@@ -1,0 +1,41 @@
+READ ME
+
+Data Retrieved from: 
+http://exoplanetarchive.ipac.caltech.edu/docs/program_interfaces.html
+
+Data Documentation from: 
+http://exoplanetarchive.ipac.caltech.edu/docs/API_exomultpars_columns.html
+
+
+Data Cleansing Process:
+— Received error from CSV parser: “Argument has more than 65000 vertices” - Removing columns
+- Converted st_dist null values to 0
+- Converted st_teff null values to 0
+- Converted pl_orbsmax null values to 1
+- Converted pl_radj null values to 1
+- Created TEFF_COLOR column
+
+
+REMOVED:
+pl_orbpererr1	
+pl_orbpererr2
+pl_orbsmaxerr1	
+pl_orbsmaxerr2
+pl_orbeccenerr1	
+pl_orbeccenerr2
+pl_orbinclerr1	
+pl_orbinclerr2
+pl_bmassjerr1	
+pl_bmassjerr2
+pl_radjerr1	
+pl_radjerr2
+pl_denserr1	
+pl_denserr2
+st_disterr1	
+st_tefferr1	
+st_tefferr2
+st_disterr2
+st_masserr1	
+st_masserr2
+st_raderr1	
+st_raderr2
