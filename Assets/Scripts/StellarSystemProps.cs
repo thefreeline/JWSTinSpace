@@ -1,24 +1,25 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 
 // Script used to collect and store stellar system properties
 
 public class StellarSystemProps : MonoBehaviour {
 
-	public string starName;
-	public float starX;
-	public float starY;
-	public float starZ;
-	public float starRA;
-	public float starDEC;
-	public float starDISTps;
-	public float starDISTly;
-	public float starColor; 
-	public float starRadius;
+	static public string starName;
+    static public float starX;
+    static public float starY;
+    static public float starZ;
+    static public float starRA;
+    static public float starDEC;
+    static public float starDISTps;
+    static public float starDISTly;
+    static public float starColor;
+    static public float starRadius;
 
-	public string planetName;
-	public float planetOrbMax;
-	public float planetRadius;
-
+    static public string planetName;
+    static public float planetOrbMax;
+    static public float planetOrbPeriod;
+    static public float planetRadius;
 }

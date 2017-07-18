@@ -4,13 +4,17 @@ using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 using System;
+using VRStandardAssets;
+using VRTK;
+using UnityEngine.SceneManagement;
+
 
 
 public class ExoplanetCSV : MonoBehaviour
 {
 	public TextAsset file;
 
-	public string starName;
+    private string starName;
 	private float starX;
 	private float starY;
 	private float starZ;
@@ -21,23 +25,510 @@ public class ExoplanetCSV : MonoBehaviour
 	private float starColor; 
 	private float starRadius;
 
-	private string planetName;
-	private float planetX;
-	private float planetY;
+    private string planetName;
 	private float planetOrbMax;
 	private float planetRadius;
+    private float planetOrbPeriod;
 
-	public float testNumber;
+    //Data file parameters
+    private string diameterText;
+    private string choronographText;
+    private string exozodiText;
 
-	//private Renderer planetRenderer;
-	//private Rigidbody planetRigidBody;
 
-	void Start ()
+    void Start ()
 	{
 		Load (file);
 	}
 
-	public class Row
+    //Used to iterate over csv file, assign proper variables, convert distance and call star creation method
+    public void Load(TextAsset csv)
+    {
+        rowList.Clear();
+        string[][] grid = CsvParser2.Parse(csv.text);
+        for (int i = 1; i < grid.Length; i++)
+        {
+            Row row = new Row();
+            row.rowid = grid[i][0];
+            row.pl_hostname = grid[i][1];
+            row.pl_letter = grid[i][2];
+            row.pl_discmethod = grid[i][3];
+            row.pl_pnum = grid[i][4];
+            row.pl_orbper = grid[i][5];
+            row.pl_orbperlim = grid[i][6];
+            row.pl_orbsmax = grid[i][7];
+            row.pl_orbsmaxlim = grid[i][8];
+            row.pl_orbeccen = grid[i][9];
+            row.pl_orbeccenlim = grid[i][10];
+            row.pl_orbincl = grid[i][11];
+            row.pl_orbincllim = grid[i][12];
+            row.pl_bmassj = grid[i][13];
+            row.pl_bmassjlim = grid[i][14];
+            row.pl_bmassprov = grid[i][15];
+            row.pl_radj = grid[i][16];
+            row.pl_radjlim = grid[i][17];
+            row.pl_dens = grid[i][18];
+            row.pl_denslim = grid[i][19];
+            row.pl_ttvflag = grid[i][20];
+            row.pl_kepflag = grid[i][21];
+            row.pl_k2flag = grid[i][22];
+            row.pl_nnotes = grid[i][23];
+            row.ra_str = grid[i][24];
+            row.ra = grid[i][25];
+            row.dec_str = grid[i][26];
+            row.dec = grid[i][27];
+            row.st_dist = grid[i][28];
+            row.st_distlim = grid[i][29];
+            row.st_optmag = grid[i][30];
+            row.st_optmagerr = grid[i][31];
+            row.st_optmaglim = grid[i][32];
+            row.st_optmagblend = grid[i][33];
+            row.st_optband = grid[i][34];
+            row.st_teff = grid[i][35];
+            row.st_tefflim = grid[i][36];
+            row.st_teffblend = grid[i][37];
+            row.st_mass = grid[i][38];
+            row.st_masslim = grid[i][39];
+            row.st_massblend = grid[i][40];
+            row.st_rad = grid[i][41];
+            row.st_radlim = grid[i][42];
+            row.st_radblend = grid[i][43];
+            row.TEFF_COLOR = grid[i][43];
+
+            //assign data to variable
+            starName = row.pl_hostname;
+            starRA = float.Parse(row.ra);
+            starDEC = float.Parse(row.dec);
+            starDISTps = float.Parse(row.st_dist); //<AU> 
+            //Make all object the same distance away
+            //starDISTps = 1f;
+            starColor = float.Parse(row.st_teff);
+            starRadius = float.Parse(row.st_rad); //<JR> 1 Jupiter Radii == .1 Solar Radii
+            planetName = starName + "_" + row.pl_letter;
+
+            //Accounting for missing data when only a star exists
+            if (row.pl_orbper == " ")
+            {
+                planetOrbPeriod = 0;
+            }
+            else
+            {
+                planetOrbPeriod = float.Parse(row.pl_orbper) / 100;
+            };
+            //Accounting for missing data when only a star exists
+            if (row.pl_orbsmax == " ")
+            {
+                planetOrbMax = 0;
+            }
+            else
+            {
+                planetOrbMax = float.Parse(row.pl_orbsmax);
+            };
+            //Accounting for missing data when only a star exists
+            if (row.pl_radj == " ")
+            {
+                planetRadius = 0;
+            }
+            else
+            {
+                planetRadius = float.Parse(row.pl_radj);
+            };
+
+            float JupRad_To_Km = 69911;
+            float SolRad_To_Km = 695700;
+            float AstUnit_To_Km = 149600000;
+
+            //float JupRad_To_Km = 1;
+            //float SolRad_To_Km = 1;
+            //float AstUnit_To_Km = 1;
+
+            //convert parsec to light year
+            //starDISTly = starDISTps * 3.26F;
+            starDISTly = 1;
+
+            planetRadius = (planetRadius * JupRad_To_Km) * .000001f; //Normalized to Km;
+            starRadius = (starRadius * SolRad_To_Km) * .000001f; //Normalized to Km;
+            planetOrbMax = (planetOrbMax * AstUnit_To_Km) * .000001f; //Normalized to Km;
+
+            //convert RA, Dec, and Distance to XYZ
+            starX = 20 * (starXcalc(starRA, starDEC, starDISTly));
+            starY = 20 * (starYcalc(starRA, starDEC, starDISTly));
+            starZ = 20 * (starZcalc(starRA, starDEC, starDISTly));
+            //starZ = 10 * starDISTly;
+
+            new createStars(starName, starX, starY, starZ, starColor, starRadius, planetName, planetOrbMax, planetOrbPeriod, planetRadius);
+
+            rowList.Add(row);
+        }
+        isLoaded = true;
+    }
+
+    public class createStars
+    {
+        private GameObject star;
+        private VRStandardAssets.Utils.VRInteractiveItem starInteractive;
+        private GameObject starSystemContainer;
+        private GameObject starContainer;
+
+        //Define star materials
+        private Material redStarMaterial = Resources.Load("redStarMaterial", typeof(Material)) as Material;
+        private Material orangeStarMaterial = Resources.Load("orangeStarMaterial", typeof(Material)) as Material;
+        private Material yellowStarMaterial = Resources.Load("yellowStarMaterial", typeof(Material)) as Material;
+        private Material blueStarMaterial = Resources.Load("blueStarMaterial", typeof(Material)) as Material;
+        private Material greenStarMaterial = Resources.Load("greenStarMaterial", typeof(Material)) as Material;
+        private Material cyanStarMaterial = Resources.Load("cyanStarMaterial", typeof(Material)) as Material;
+        private Material sunRedGamma = Resources.Load("FORGE3D/Planets/Sun/Materials/Sun_red_gamma", typeof(Material)) as Material;
+        private Material sunBlueGamma = Resources.Load("FORGE3D/Planets/Sun/Materials/Sun_blue_gamma", typeof(Material)) as Material;
+        private Material sunGreenGamma = Resources.Load("FORGE3D/Planets/Sun/Materials/Sun_green_gamma", typeof(Material)) as Material;
+        private Material sunBlueWhiteGamma = Resources.Load("FORGE3D/Planets/Sun/Materials/Sun_blue_white_gamma", typeof(Material)) as Material;
+        private Material sunWhiteGamma = Resources.Load("FORGE3D/Planets/Sun/Materials/Sun_white_gamma", typeof(Material)) as Material;
+        private Material sunYellowWhiteGamma = Resources.Load("FORGE3D/Planets/Sun/Materials/Sun_yellow_white_gamma", typeof(Material)) as Material;
+
+        //Define variables to be used to populate StellarSystemProps
+        public string ssp_starName;
+        public float ssp_starX;
+        public float ssp_starY;
+        public float ssp_starZ;
+        public float ssp_starRA;
+        public float ssp_starDEC;
+        public float ssp_starDISTps;
+        public float ssp_starDISTly;
+        public float ssp_starColor;
+        public float ssp_starRadius;
+        public List<string> ssp_planetName = new List<string>();
+        public float ssp_planetOrbMax;
+        public float ssp_planetOrbPeriod;
+        public float ssp_planetRadius;
+
+
+        private Flare yellowFlareMed = Resources.Load("FlareSmall", typeof(Flare)) as Flare;
+
+        public void changeScene(object sender, InteractableObjectEventArgs e)
+        {
+            SceneManager.LoadScene("--Experimental--LUVOIR Planetary System");
+        }
+
+        public void populateStarSystemProps(object sender, InteractableObjectEventArgs e)
+        {
+            StellarSystemProps.starName = ssp_starName;
+            StellarSystemProps.starX = ssp_starX;
+            StellarSystemProps.starY = ssp_starY;
+            StellarSystemProps.starZ = ssp_starZ;
+            StellarSystemProps.starColor = ssp_starColor;
+            StellarSystemProps.starRadius = ssp_starRadius;
+            StellarSystemProps.planetName = ssp_planetName;
+            StellarSystemProps.planetOrbMax = ssp_planetOrbMax;
+            StellarSystemProps.planetOrbPeriod = ssp_planetOrbPeriod;
+            StellarSystemProps.planetRadius = ssp_planetRadius;
+
+            foreach (String str in ssp_planetName)
+            {
+                Debug.Log(str);
+            }
+        }
+
+        public createStars(
+            string starName,
+            float starX,
+            float starY,
+            float starZ,
+            float starColor,
+            float starRadius,
+            string planetName,
+            float planetOrbMax,
+            float planetOrbPeriod,
+            float planetRadius
+            )
+        {
+            
+
+            //Get game object to put star systems into
+            starSystemContainer = GameObject.Find("Star Systems");
+            starContainer = GameObject.Find(starName);
+
+            //create new star primitive
+            if (!starContainer)
+            {
+                //Assign Star System Properties
+                ssp_starName = starName;
+                ssp_starX = starX;
+                ssp_starY = starY;
+                ssp_starZ = starZ;
+                ssp_starColor = starColor;
+                ssp_starRadius = starRadius;
+                ssp_planetName.Add(planetName);
+                ssp_planetOrbMax = planetOrbMax;
+                ssp_planetOrbPeriod = planetOrbPeriod;
+                ssp_planetRadius = planetRadius;
+
+                //Create star and assign basic properties
+                GameObject star = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                star.name = starName;
+                star.tag = "star";
+
+                //Add position and scalle, then move to star container
+                star.transform.position = new Vector3(starX, starY, starZ);
+                star.transform.localScale = new Vector3(starRadius, starRadius, starRadius);
+                star.transform.parent = starSystemContainer.transform;
+
+                //Add sphere collider
+                var starCollider = star.GetComponent<SphereCollider>();
+                starCollider.isTrigger = true;
+                starCollider.radius = 1F;
+
+
+                //star.AddComponent<VRTK.VRTK_ControllerEvents>();
+                var starInteractable = star.AddComponent<VRTK.VRTK_InteractableObject>();
+                starInteractable.disableWhenIdle = false;
+                starInteractable.pointerActivatesUseAction = true;
+                starInteractable.holdButtonToUse = false;
+                starInteractable.InteractableObjectUsed += new VRTK.InteractableObjectEventHandler(changeScene);
+                starInteractable.InteractableObjectUsed += new VRTK.InteractableObjectEventHandler(populateStarSystemProps);
+                
+                //Add retical interactable script
+                //var starInteractiveItem = star.AddComponent<VRStandardAssets.Utils.VRInteractiveItem>();
+                //var starReticle = star.AddComponent<ReticleInteraction>();
+
+                // Add star rigidbody component
+                //Rigidbody starRigidBody = star.AddComponent<Rigidbody>();
+                //starRigidBody.mass = 0F;
+                //starRigidBody.useGravity = false;
+                //starRigidBody.isKinematic = true;
+
+                //Assign materials
+                if (starColor <= 3500)
+                {
+                    star.GetComponent<Renderer>().material = sunRedGamma;
+                }
+                else if (starColor >= 3501 && starColor <= 6000)
+                {
+                    star.GetComponent<Renderer>().material = sunGreenGamma;
+                }
+                else if (starColor >= 6001 && starColor <= 7500)
+                {
+                    star.GetComponent<Renderer>().material = sunYellowWhiteGamma;
+                }
+                else if (starColor >= 7501 && starColor <= 10000)
+                {
+                    star.GetComponent<Renderer>().material = sunWhiteGamma;
+                }
+                else
+                {
+                    star.GetComponent<Renderer>().material = sunBlueGamma;
+                };
+
+                //Add lens flare to star
+                //var starLight = new GameObject("Star Light");
+                //starLight.AddComponent<Light>();
+                //var StarFlare = starLight.AddComponent<LensFlare>();
+                //StarFlare.flare = yellowFlareMed;
+
+                //starLight.transform.parent = star.transform;
+                //starLight.transform.localPosition = new Vector3(0, 0, 0);
+
+
+
+                //Debug.Log(starName + ": " + starColor);
+                //if (starColor <= 3500)
+                //{
+                //    starReticle.m_NormalMaterial = sunRedGamma;
+                //}
+                //else if (starColor >= 3501 && starColor <= 6000)
+                //{
+                //    starReticle.m_NormalMaterial = sunGreenGamma;
+                //}
+                //else if (starColor >= 6001 && starColor <= 7500)
+                //{
+                //    starReticle.m_NormalMaterial = sunYellowWhiteGamma;
+                //}
+                //else if (starColor >= 7501 && starColor <= 10000)
+                //{
+                //    starReticle.m_NormalMaterial = sunWhiteGamma;
+                //}
+                //else
+                //{
+                //    starReticle.m_NormalMaterial = sunBlueGamma;
+                //};
+
+                //starReticle.m_NormalMaterial = sunBlueGamma;
+                //starReticle.m_OverMaterial = blueStarMaterial;
+                //starReticle.m_DoubleClickedMaterial = blueStarMaterial;
+                //starReticle.m_ClickedMaterial = blueStarMaterial;
+                //starReticle.m_InteractiveItem = starInteractiveItem;
+                //var starRenderer = star.GetComponent<Renderer>();
+                //starReticle.m_Renderer = starRenderer;
+
+                //Add script to change scenes
+                //var starSceneChange = star.AddComponent<SceneChanger>();
+                //starSceneChange.sceneName = "--Experimental--LUVOIR Planetary System";
+
+                //var starScenceChange = star.AddComponent<VRTK.Examples.ChangeSceneOnClick>();
+                //starScenceChange.disableWhenIdle = false;
+                //starScenceChange.isUsable = true;
+                //starScenceChange.pointerActivatesUseAction = true;
+
+                // Add properties to StellarSystemProps script to be access when creating new scene
+                //star.AddComponent<StellarSystemProps>();
+                //var starProps = star.GetComponent<StellarSystemProps>();
+
+                //StellarSystemProps.starName = starName;
+                //StellarSystemProps.starX = starX;
+                //StellarSystemProps.starY = starY;
+                //StellarSystemProps.starZ = starZ;
+                //StellarSystemProps.starColor = starColor;
+                //StellarSystemProps.starRadius = starRadius;
+                //StellarSystemProps.planetName = planetName;
+                //StellarSystemProps.planetOrbMax = planetOrbMax;
+                //StellarSystemProps.planetOrbPeriod = planetOrbPeriod;
+                //StellarSystemProps.planetRadius = planetRadius;
+            }
+            else
+            {
+                //Add planet info to list
+                ssp_planetName.Add(planetName);
+                
+            }
+            //new createPlanets(starName, starX, starY, starZ, starColor, starRadius, planetName, planetOrbMax, planetOrbPeriod, planetRadius);
+        }
+    }
+
+
+    public class createPlanets
+    {
+
+        private GameObject star;
+        private Material planetTrailMaterial = Resources.Load("redStarMaterial", typeof(Material)) as Material;
+
+        public createPlanets(
+            string starName,
+            float starX,
+            float starY,
+            float starZ,
+            float starColor,
+            float starRadius,
+            string planetName,
+            float planetOrbMax,
+            float planetOrbPeriod,
+            float planetRadius)
+        {
+
+            star = GameObject.Find(starName);
+
+            //Create new planet primitive
+            GameObject planet = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            planet.transform.parent = star.transform;
+            planet.AddComponent<Orbiter>();
+            planet.GetComponent<Orbiter>().orbitSpeed = planetOrbPeriod;
+            planet.name = planetName;
+            planet.tag = "planet";
+            var planetZ = starZ + planetOrbMax;
+            planet.transform.position = new Vector3(starX, starY, planetZ);
+            planet.transform.localScale = new Vector3(planetRadius, planetRadius, planetRadius);
+
+            //// Add star rigidbody component
+            Rigidbody planetRigidBody = planet.AddComponent<Rigidbody>();
+            planetRigidBody.mass = 0;
+            planetRigidBody.useGravity = false;
+            planetRigidBody.isKinematic = true;
+
+
+            //Add trail renderers
+            TrailRenderer planetTrail;
+            Material planetTrailMat;
+
+            GameObject planetTrailObj = new GameObject();
+            planetTrailObj.name = planetName + "_trail";
+            planetTrailObj.transform.parent = planet.transform;
+            planetTrailObj.transform.localPosition = Vector3.zero;
+
+            planetTrail = planetTrailObj.AddComponent<TrailRenderer>();
+            planetTrail.time = 5;
+            planetTrail.startWidth = 0.5F;
+            planetTrail.endWidth = 0.0F;
+
+            planetTrailMat = planetTrailObj.GetComponent<Renderer>().material = planetTrailMaterial;
+
+            //Render text overlay
+            //GameObject player = GameObject.FindGameObjectWithTag("GameController");
+            //float distToStar = Vector3.Distance(planet.transform.position, player.transform.position);
+            //var textcoloropacity = ConvertRange(0f, 10000f, 1f, 0f, distToStar);
+            ////GameObject canvas = Gameobject.findgameobjectwithtag("canvaslabels");
+            //GameObject canvas = GameObject.FindWithTag("starLabels");
+            //GameObject textgo = new GameObject(starName + "_labelcont");
+            //textgo.transform.SetParent(canvas.transform);
+            //var text = textgo.AddComponent<Text>();
+            //text.text = starName;
+            //text.tag = "starLabel";
+            //text.color = new Color(1f, 1f, 1f, textcoloropacity);
+            //var objLabel = textgo.AddComponent<ObjectLabel>();
+            //objLabel.target = star.transform;
+            //objLabel.clampToScreen = false;
+        }
+    }
+
+    //Allows user to update data sets based on menu inputs
+    public void loadNewData()
+    {
+        //Remove current star system
+        var starSystemContainer = GameObject.Find("Star Systems");
+        var starSystemChildren = new List<GameObject>();
+        foreach (Transform child in starSystemContainer.transform) starSystemChildren.Add(child.gameObject);
+        starSystemChildren.ForEach(child => Destroy(child));
+
+        //Assign file name variables based on toggle menu selections
+        var diameter = GameObject.Find("Toggle Group: Diameter");
+        foreach (Transform child in diameter.transform)
+        {
+            if (child.GetComponent<Toggle>().isOn)
+            {
+                var label = child.Find("Label");
+                diameterText = label.GetComponent<Text>().text;
+            }; 
+        };
+
+        var coronographContrast = GameObject.Find("Toggle Group: Choronograph Contrast");
+        foreach (Transform child in coronographContrast.transform)
+        {
+            if (child.GetComponent<Toggle>().isOn)
+            {
+                var label = child.Find("Label");
+                choronographText = label.GetComponent<Text>().text;
+            };
+        };
+
+        var exozodi = GameObject.Find("Toggle Group: Exozodi");
+        foreach (Transform child in exozodi.transform)
+        {
+            if (child.GetComponent<Toggle>().isOn)
+            {
+                var label = child.Find("Label");
+                exozodiText = label.GetComponent<Text>().text;
+            };
+        };
+
+        //Build the filename from assigned variables and pull from resources
+        file = Resources.Load("Data/tumlinson-multiplanet_results-"+diameterText+"_"+ choronographText+ "_0.10_"+ exozodiText + "", typeof(TextAsset)) as TextAsset;
+        Load(file);
+    }
+
+
+    //Converts RA, Dec, and Distance to XYZ
+    public float starXcalc(float starRA, float starDEC, float starDISTly)
+    {
+        return Mathf.Cos(starRA * (Mathf.PI / 180)) * (Mathf.Cos(starDEC * (Mathf.PI / 180)) * starDISTly);
+    }
+
+    public float starYcalc(float starRA, float starDEC, float starDISTly)
+    {
+        return Mathf.Sin(starDEC * (Mathf.PI / 180)) * starDISTly;
+    }
+
+    public float starZcalc(float starRA, float starDEC, float starDISTly)
+    {
+        return 1 * (Mathf.Sin(starRA * (Mathf.PI / 180)) * (Mathf.Cos(starDEC * (Mathf.PI / 180)) * starDISTly));
+    }
+
+    public class Row
 	{
 		public string rowid;
 		public string pl_hostname;
@@ -102,148 +593,6 @@ public class ExoplanetCSV : MonoBehaviour
 	}
 
 
-
-
-
-	public class planetSystem {
-
-		//private float planetZ;
-		//private float orbitDiameter;
-
-		public planetSystem(
-			string starName, 
-			float starX, 
-			float starY, 
-			float starZ, 
-			float starColor, 
-			float starRadius, 
-			string planetName, 
-			float planetOrbMax,
-			float planetRadius )
-		{
-
-
-			//create new star primitive
-			GameObject star = GameObject.CreatePrimitive (PrimitiveType.Sphere);
-			star.name = starName;
-			star.tag = "star";
-			star.transform.position = new Vector3 (starX, starY, starZ);
-			star.transform.localScale = new Vector3 (starRadius, starRadius, starRadius);
-
-			// Add properties to StellarSystemProps script to be access when creating new scene
-			star.AddComponent<StellarSystemProps>();
-			var starProps = star.GetComponent<StellarSystemProps>();
-			starProps.starName = starName;
-			starProps.starX = starX;
-			starProps.starY = starY; 
-			starProps.starZ = starZ; 
-			starProps.starColor = starColor; 
-			starProps.starRadius = starRadius; 
-			starProps.planetName = planetName;
-			starProps.planetOrbMax = planetOrbMax;
-			starProps.planetRadius = planetRadius;
-
-			// Add star rigidbody component
-			Rigidbody starRigidBody = star.AddComponent<Rigidbody> ();
-			starRigidBody.mass = 0;
-			starRigidBody.useGravity = false;
-			starRigidBody.isKinematic = true;
-
-
-			//Define star color attributes
-//			Material blueStarMaterial = Resources.Load ("blueStarMaterial", typeof(Material)) as Material;
-//			Material cyanStarMaterial = Resources.Load ("cyanStarMaterial", typeof(Material)) as Material;
-//			Material yellowStarMaterial = Resources.Load ("yellowStarMaterial", typeof(Material)) as Material;
-//			Material greenStarMaterial = Resources.Load ("greenStarMaterial", typeof(Material)) as Material;
-//			Material orangeStarMaterial = Resources.Load ("orangeStarMaterial", typeof(Material)) as Material;
-//			Material redStarMaterial = Resources.Load ("redStarMaterial", typeof(Material)) as Material;
-			Material orbitalSphereMaterial = Resources.Load ("orbitalSphereMaterial", typeof(Material)) as Material;
-
-			Material blueStarMaterial = Resources.Load ("LocalStarBody-Blue-001", typeof(Material)) as Material;
-			Material yellowStarMaterial = Resources.Load ("LocalStarBody-Yellow-001", typeof(Material)) as Material;
-			Material orangeStarMaterial = Resources.Load ("LocalStarBody-Orange-001", typeof(Material)) as Material;
-			Material redStarMaterial = Resources.Load ("LocalStarBody-Red-001", typeof(Material)) as Material;
-
-			if(starColor <= 3500)
-			{
-				star.GetComponent<Renderer>().material = redStarMaterial;
-			}
-			else if(starColor >= 3501 && starColor <= 5000)
-			{
-				star.GetComponent<Renderer>().material = orangeStarMaterial;
-			}
-			else if(starColor >= 5001 && starColor <= 6000)
-			{
-				star.GetComponent<Renderer>().material = yellowStarMaterial;
-			}
-			else if(starColor >= 6001 )
-			{
-				star.GetComponent<Renderer>().material = blueStarMaterial;
-			}
-//			else if(starColor >= 4001 && starColor <= 5000)
-//			{
-//				star.GetComponent<Renderer>().material = greenStarMaterial;
-//			}
-//			else if(starColor >= 5001 && starColor <= 8000)
-//			{
-//				star.GetComponent<Renderer>().material = cyanStarMaterial;
-//			}
-//			else if (starColor >= 8001)
-//			{
-//				star.GetComponent<Renderer>().material = blueStarMaterial;
-//			}
-
-			//Create new planet primitive
-			GameObject planet = GameObject.CreatePrimitive (PrimitiveType.Sphere);
-			planet.transform.parent = star.transform;
-			//planet.AddComponent<Orbiter>();
-			//planet.GetComponent<Orbiter>().orbitSpeed = 50;
-			planet.name = planetName;
-			planet.tag = "planet";
-			var planetZ = starZ + planetOrbMax;
-			planet.transform.position = new Vector3 (starX, starY, planetZ);
-			planet.transform.localScale = new Vector3 (planetRadius, planetRadius, planetRadius); 
-
-			//// Add star rigidbody component
-			Rigidbody planetRigidBody = planet.AddComponent<Rigidbody> ();
-			planetRigidBody.mass = 0;
-			planetRigidBody.useGravity = false;
-			planetRigidBody.isKinematic = true;
-
-			TrailRenderer planetTrail;
-			GameObject planetTrailObj = new GameObject();
-			planetTrailObj.name = planetName + "_trail";
-			planetTrailObj.transform.parent = planet.transform;
-			planetTrailObj.transform.localPosition = Vector3.zero;
-			planetTrail = planetTrailObj.AddComponent<TrailRenderer>();
-			planetTrail.time = Mathf.Infinity;
-			planetTrail.startWidth = 0.2F;
-			planetTrail.endWidth = 0.2F;
-			planetTrailObj.GetComponent<TrailRenderer>().material = orbitalSphereMaterial;
-
-			GameObject player = GameObject.FindGameObjectWithTag("GameController");
-			//float distToStar = Vector3.Distance(planet.transform.position, player.transform.position);
-
-
-//			var textColorOpacity = ConvertRange(0f,10000f,1f,0f,distToStar);
-//			//Create new text element and attach object label script
-//			GameObject canvas = GameObject.FindGameObjectWithTag("CanvasLabels");
-//			GameObject textGO = new GameObject (starName + "_labelCont");
-//			textGO.transform.SetParent (canvas.transform);
-//			var text = textGO.AddComponent<GUIText> ();
-//			text.text = starName;
-//			text.tag = "star_label";
-//			text.color = new Color(1f,1f,1f,textColorOpacity);
-//			var objLabel = textGO.AddComponent<ObjectLabel> ();
-//			objLabel.target = star.transform;
-//			objLabel.clampToScreen = false;
-
-		}
-
-
-	}
-
-
 	void Update ()
 	{
 //		GameObject player = GameObject.FindGameObjectWithTag("GameController");
@@ -278,120 +627,6 @@ public class ExoplanetCSV : MonoBehaviour
 		float finalValue = (newProduct + newStart) + (newDiff/2);
 		return finalValue; 
 
-	}
-
-	public float starXcalc (float starRA, float starDEC, float starDISTly)
-	{
-		return Mathf.Cos(starRA * (Mathf.PI / 180)) * (Mathf.Cos (starDEC * (Mathf.PI / 180)) * starDISTly);
-	}
-
-	public float starYcalc (float starRA, float starDEC, float starDISTly)
-	{
-		return Mathf.Sin (starDEC * (Mathf.PI / 180)) * starDISTly;
-	}
-
-	public float starZcalc (float starRA, float starDEC, float starDISTly)
-	{
-		return 1 * (Mathf.Sin (starRA * (Mathf.PI / 180)) * (Mathf.Cos (starDEC * (Mathf.PI / 180)) * starDISTly));
-	}
-
-
-	public void Load(TextAsset csv)
-	{ 
-
-		rowList.Clear();
-		string[][] grid = CsvParser2.Parse(csv.text);
-		for(int i = 1 ; i < grid.Length ; i++)
-		{
-			Row row = new Row();
-			row.rowid = grid[i][0];
-			row.pl_hostname = grid[i][1];
-			row.pl_letter = grid[i][2];
-			row.pl_discmethod = grid[i][3];
-			row.pl_pnum = grid[i][4];
-			row.pl_orbper = grid[i][5];
-			row.pl_orbperlim = grid[i][6];
-			row.pl_orbsmax = grid[i][7];
-			row.pl_orbsmaxlim = grid[i][8];
-			row.pl_orbeccen = grid[i][9];
-			row.pl_orbeccenlim = grid[i][10];
-			row.pl_orbincl = grid[i][11];
-			row.pl_orbincllim = grid[i][12];
-			row.pl_bmassj = grid[i][13];
-			row.pl_bmassjlim = grid[i][14];
-			row.pl_bmassprov = grid[i][15];
-			row.pl_radj = grid[i][16];
-			row.pl_radjlim = grid[i][17];
-			row.pl_dens = grid[i][18];
-			row.pl_denslim = grid[i][19];
-			row.pl_ttvflag = grid[i][20];
-			row.pl_kepflag = grid[i][21];
-			row.pl_k2flag = grid[i][22];
-			row.pl_nnotes = grid[i][23];
-			row.ra_str = grid[i][24];
-			row.ra = grid[i][25];
-			row.dec_str = grid[i][26];
-			row.dec = grid[i][27];
-			row.st_dist = grid[i][28];
-			row.st_distlim = grid[i][29];
-			row.st_optmag = grid[i][30];
-			row.st_optmagerr = grid[i][31];
-			row.st_optmaglim = grid[i][32];
-			row.st_optmagblend = grid[i][33];
-			row.st_optband = grid[i][34];
-			row.st_teff = grid[i][35];
-			row.st_tefflim = grid[i][36];
-			row.st_teffblend = grid[i][37];
-			row.st_mass = grid[i][38];
-			row.st_masslim = grid[i][39];
-			row.st_massblend = grid[i][40];
-			row.st_rad = grid[i][41];
-			row.st_radlim = grid[i][42];
-			row.st_radblend = grid[i][43];
-			row.TEFF_COLOR = grid[i][43];
-
-			//assign data to variable
-			starName = row.pl_hostname;
-			starRA = float.Parse (row.ra);
-			starDEC = float.Parse (row.dec);
-			starDISTps = float.Parse (row.st_dist); //<AU> 
-			starColor = float.Parse (row.st_teff);
-			starRadius = float.Parse (row.st_rad); //<JR> 1 Jupiter Radii == .1 Solar Radii
-			planetName =  starName + "_" + row.pl_letter;
-			planetOrbMax = float.Parse (row.pl_orbsmax);
-			planetRadius = float.Parse (row.pl_radj); //<JR> 1 Jupiter Radii == .1 Solar Radii
-
-			float JupRad_To_Km = 69911;
-			float SolRad_To_Km = 695700;
-			float AstUnit_To_Km = 149600000;
-
-			//convert parsec to light year
-			starDISTly = starDISTps * 3.26F;
-
-			planetRadius = (planetRadius * JupRad_To_Km) * .000001f; //Normalized to Km;
-			starRadius = (starRadius * SolRad_To_Km) * .000001f; //Normalized to Km;
-			planetOrbMax = (planetOrbMax * AstUnit_To_Km) * .000001f; //Normalized to Km;
-
-			//convert RA, Dec, and Distance to XYZ
-			starX = 20 * (starXcalc (starRA, starDEC, starDISTly));
-			starY = 20 * (starYcalc (starRA, starDEC, starDISTly));
-			starZ = 20 * (starZcalc (starRA, starDEC, starDISTly));
-			//starZ = 10 * starDISTly;
-
-
-			//create new planet system
-			if (starDISTly != 0) {
-				//if (starName == "2MASS J02192210-3925225") {
-//				Debug.Log ("StarName: " + starName);
-//				Debug.Log ("Star Radii in km: " + starRadius);
-//				Debug.Log ("Planet Radii in km: " + planetRadius);
-				//}
-				new planetSystem (starName, starX, starY, starZ, starColor, starRadius, planetName, planetOrbMax, planetRadius);
-			}
-
-			rowList.Add(row);
-		}
-		isLoaded = true;
 	}
 
 

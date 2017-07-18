@@ -15,7 +15,7 @@ public class Init : MonoBehaviour {
     void Start()
     {
         icons = GameObject.FindGameObjectsWithTag("icon");
-       
+
         // Get Info Menu Container and reposition out of view
         infoMenuContainer = GameObject.FindGameObjectWithTag("infoMenuContainer");
         //Debug.Log(infoMenuContainer);
